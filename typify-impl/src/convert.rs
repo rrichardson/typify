@@ -930,9 +930,10 @@ impl TypeSpace {
 mod tests {
     use std::num::{NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8};
 
+    use schema::Schema;
     use schemars::{schema_for, JsonSchema};
 
-    use crate::{validate_builtin, Name, TypeSpace};
+    use crate::{test_util::validate_output, validate_builtin, Name, TypeSpace};
     use paste::paste;
 
     fn int_helper<T: JsonSchema>() {
@@ -1017,5 +1018,25 @@ mod tests {
     #[test]
     fn test_set() {
         validate_builtin!(std::collections::BTreeSet<u32>);
+    }
+
+    #[test]
+    fn test_trivial_cycle() {
+        // Currently schemars will actually include the type A twice if this is
+        // made a RootSchema; it should really have a reference that it uses as
+        // the RootSchema. To workaround this, we refer to A from B below.
+        #[derive(JsonSchema, Schema)]
+        #[allow(dead_code)]
+        struct A {
+            a: Box<A>,
+        }
+
+        #[derive(JsonSchema, Schema)]
+        #[allow(dead_code)]
+        struct B {
+            a: A,
+        }
+
+        validate_output::<B>();
     }
 }
